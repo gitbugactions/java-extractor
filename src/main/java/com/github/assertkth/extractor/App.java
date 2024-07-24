@@ -21,7 +21,7 @@ public class App implements Callable<Integer> {
         String result = Extractor.extract(input, lines);
 
         if (result != null) {
-            System.out.println(result);
+            System.out.print(result);
             return 0;
         } else {
             return 1;
