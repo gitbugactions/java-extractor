@@ -1,6 +1,7 @@
 package com.github.assertkth.extractor;
 
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.List;
 
@@ -11,7 +12,25 @@ import com.github.javaparser.ast.body.MethodDeclaration;
 
 public class Extractor {
 
-    public static String extract(String file, List<Integer> lines) throws IOException {
+    private static String extractString(String file, Node function) throws IOException {
+        // Extract string from file that corresponds to the function (including javadoc)
+        String extracted = "";
+        if (function != null) {
+            Integer begin = function.getComment().isPresent() ? function.getComment().get().getRange().get().begin.line - 1 : function.getRange().get().begin.line - 1;
+            Integer end = function.getRange().get().end.line - 1;
+            String[] linesArray = new String[0];
+            try (FileInputStream fis = new FileInputStream(file)) {
+                linesArray = new String(fis.readAllBytes()).split("\n");
+            }
+            for (int i = begin; i <= end; i++) {
+                extracted += linesArray[i] + "\n";
+            }
+        }
+
+        return function != null ? extracted : null;
+    }
+
+    public static String extractFromLines(String file, List<Integer> lines) throws IOException {
         // Read the code and parse it
         JavaParser parser = new JavaParser();
         Node root = parser.parse(new FileInputStream(file)).getResult().get();
@@ -41,20 +60,30 @@ public class Extractor {
                 function = constructor;
         }
 
-        // Extract string from file that corresponds to the function (including javadoc)
-        String extracted = "";
-        if (function != null) {
-            Integer begin = function.getComment().isPresent() ? function.getComment().get().getRange().get().begin.line - 1 : function.getRange().get().begin.line - 1;
-            Integer end = function.getRange().get().end.line - 1;
-            String[] linesArray = new String[0];
-            try (FileInputStream fis = new FileInputStream(file)) {
-                linesArray = new String(fis.readAllBytes()).split("\n");
+        return extractString(file, function);
+    }
+
+    public static String extractFromMethodName(String file, String methodName) throws IOException {
+        // Read the code and parse it
+        JavaParser parser = new JavaParser();
+        Node root = parser.parse(new FileInputStream(file)).getResult().get();
+
+        // Find the method with the given name
+        Node function = null;
+        for (MethodDeclaration method : root.findAll(MethodDeclaration.class)) {
+            if (method.getNameAsString().equals(methodName)) {
+                function = method;
+                break;
             }
-            for (int i = begin; i <= end; i++) {
-                extracted += linesArray[i] + "\n";
+        }
+        for (ConstructorDeclaration constructor : root.findAll(ConstructorDeclaration.class)) {
+            if (constructor.getNameAsString().equals(methodName)) {
+                function = constructor;
+                break;
             }
         }
 
-        return function != null ? extracted : null;
+        return extractString(file, function);
     }
+
 }
